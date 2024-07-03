@@ -34,6 +34,10 @@ void *scp(void *ptr){
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+    (void) hInstance;
+    (void) hPrevInstance;
+    (void) lpCmdLine;
+    (void) nShowCmd;
     return main(0, NULL);
 }
 
@@ -160,6 +164,33 @@ void renderCursor(SDL_Renderer *renderer, Font *font){
     }
 }
 
+void bufferInsertTextBeforeCursor(const char *text){
+    size_t textSize = strlen(text);
+    const size_t freeSpace = BUFFER_CAPACITY - bufferSize;
+    if (textSize > freeSpace){
+        textSize = freeSpace;
+    }
+    // moving the existing content 
+    memmove(buffer + bufferCursor + textSize, buffer + bufferCursor, bufferSize-bufferCursor);
+    memcpy(buffer + bufferCursor, text, textSize);
+    bufferSize += textSize;
+    bufferCursor += textSize;
+}
+
+void bufferBackspace(void){
+    if(bufferCursor > 0 && bufferSize > 0){
+        memmove(buffer + bufferCursor - 1, buffer + bufferCursor, bufferSize - bufferCursor);
+        bufferSize--;
+        bufferCursor--;
+    }
+}
+
+void bufferDelete(void){
+    if(bufferCursor > 0 && bufferSize > 0 && bufferCursor != bufferSize){
+        memmove(buffer + bufferCursor, buffer + bufferCursor + 1, bufferSize - bufferCursor - 1);
+        bufferSize--;
+    }
+}
 
 int main(int argc, char *argv[]) {
     printf("Hello\n");
@@ -185,10 +216,11 @@ int main(int argc, char *argv[]) {
                 case SDL_KEYDOWN : {
                     switch (event.key.keysym.sym){
                         case SDLK_BACKSPACE : {
-                            if(bufferSize > 0){
-                                bufferSize--;
-                                bufferCursor = bufferSize;
-                            } 
+                            bufferBackspace();
+                            break;
+                        }
+                        case SDLK_DELETE : {
+                            bufferDelete();
                             break;
                         }
                         case SDLK_LEFT : {
@@ -207,14 +239,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 case SDL_TEXTINPUT : {
-                    size_t textSize = strlen(event.text.text);
-                    const size_t freeSpace = BUFFER_CAPACITY - bufferSize;
-                    if (textSize > freeSpace){
-                        textSize = freeSpace;
-                    }
-                    memccpy(buffer + bufferSize, event.text.text, textSize, 8);
-                    bufferSize += textSize;
-                    bufferCursor = bufferSize;
+                    bufferInsertTextBeforeCursor(event.text.text);
                 } break;
             }
         }
