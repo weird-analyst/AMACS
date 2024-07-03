@@ -8,7 +8,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include "./la.h"
+#include "./src/la/la.h"
 
 #define FONT_WIDTH 128
 #define FONT_HEIGHT 64
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
     // to enable drawing rectangles with transparency
     scc(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND));
 
-    Font font = loadFontFromFile("./charmap-oldschool_white.png", renderer);
+    Font font = loadFontFromFile("./assets/charmap-oldschool_white.png", renderer);
 
     bool quit = false;
     while (!quit){
