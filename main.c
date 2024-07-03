@@ -74,6 +74,8 @@ typedef struct {
 Font loadFontFromFile(const char* filePath, SDL_Renderer *renderer){
     Font font = {0};
     SDL_Surface *fontSurface = scp(surfaceFromFile(filePath));
+    // after getting the surface you need to set the surface color key i.e. define the background color so that you can get transparent glyphs
+    scc(SDL_SetColorKey(fontSurface, SDL_TRUE, 0xFF000000));
     font.spritesheet = scp(SDL_CreateTextureFromSurface(renderer, fontSurface));
     SDL_FreeSurface(fontSurface);
 
@@ -93,6 +95,11 @@ Font loadFontFromFile(const char* filePath, SDL_Renderer *renderer){
     return font;
 }
 
+void setTextureColor(Font *font, Uint32 color){
+    scc(SDL_SetTextureColorMod(font->spritesheet, (color >> (8*0)) & 0xff,(color >> (8*1)) & 0xff,(color >> (8*2)) & 0xff));
+    scc(SDL_SetTextureAlphaMod(font->spritesheet, (color >> (8*3))&0xff));
+}
+
 void renderChar(SDL_Renderer *renderer, Font *font, char c, Vec2f pos, float scale){
     assert(c >= ASCII_DISPLAY_LOW);
     assert(c <= ASCII_DISPLAY_HIGH);
@@ -108,8 +115,7 @@ void renderChar(SDL_Renderer *renderer, Font *font, char c, Vec2f pos, float sca
 void renderTextSized(SDL_Renderer *renderer, Font *font, const char *text, Vec2f pos, Uint32 color, float scale, size_t textSize){
     Vec2f pen = pos;
 
-    scc(SDL_SetTextureColorMod(font->spritesheet, (color >> (8*0)) & 0xff,(color >> (8*1)) & 0xff,(color >> (8*2)) & 0xff));
-    scc(SDL_SetTextureAlphaMod(font->spritesheet, (color >> (8*3))&0xff));
+    setTextureColor(font, color);
 
     for(size_t i = 0; i < textSize; i++){
         renderChar(renderer, font, text[i], pen, scale);
@@ -132,16 +138,26 @@ char buffer[BUFFER_CAPACITY];
 size_t bufferCursor = 0;
 size_t bufferSize = 0;
 
-void renderCursor(SDL_Renderer *renderer){
+
+void renderCursor(SDL_Renderer *renderer, Font *font){
+    const Vec2f pos = vec2f(floorf(bufferCursor*FONT_CHAR_WIDTH*FONT_SCALE), 0.0);
+
     const SDL_Rect rect = {
-        .x = (int) floorf(bufferCursor*FONT_CHAR_WIDTH*FONT_SCALE),
-        .y = 0,
+        .x = (int) floorf(pos.x),
+        .y = (int) floorf(pos.y),
         .w = FONT_CHAR_WIDTH * FONT_SCALE,
         .h = FONT_CHAR_HEIGHT * FONT_SCALE
     };
 
+    // draw the cursor
     scc(SDL_SetRenderDrawColor(renderer, UNHEX(0xFFFFFFFF)));
     scc(SDL_RenderFillRect(renderer, &rect));
+
+    // render the char at that position
+    setTextureColor(font, 0xFF000000);
+    if (bufferCursor < bufferSize){
+        renderChar(renderer, font, buffer[bufferCursor], pos, FONT_SCALE);
+    }
 }
 
 
@@ -151,6 +167,8 @@ int main(int argc, char *argv[]) {
 
     SDL_Window *window = scp(SDL_CreateWindow("AMacs",20,20,800,600,SDL_WINDOW_RESIZABLE));
     SDL_Renderer *renderer = scp(SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED));
+    // to enable drawing rectangles with transparency
+    scc(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND));
 
     Font font = loadFontFromFile("./charmap-oldschool_white.png", renderer);
 
@@ -173,9 +191,16 @@ int main(int argc, char *argv[]) {
                             } 
                             break;
                         }
-                        case SDLK_PLUS : {
-                            
+                        case SDLK_LEFT : {
+                            if (bufferCursor > 0) {
+                                bufferCursor--;
+                            }
                             break;
+                        }
+                        case SDLK_RIGHT : {
+                            if (bufferCursor < bufferSize) {
+                                bufferCursor++;
+                            }
                         }
                     }
                     break;
@@ -197,8 +222,8 @@ int main(int argc, char *argv[]) {
         scc(SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0));
         scc(SDL_RenderClear(renderer));
 
-        renderTextSized(renderer, &font, buffer, vec2f(0.0, 0.0), 0xFFFF00FF, FONT_SCALE, bufferSize);
-        renderCursor(renderer);
+        renderTextSized(renderer, &font, buffer, vec2f(0.0, 0.0), 0xFFFFFFFF, FONT_SCALE, bufferSize);
+        renderCursor(renderer, &font);
 
         SDL_RenderPresent(renderer);
     }
